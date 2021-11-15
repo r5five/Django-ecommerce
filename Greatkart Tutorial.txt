@@ -1,0 +1,696 @@
+1. Setting up new project
+
+a. Inside new folder, run GIT Bash
+b. To create new virtual enviroment = python -m venv env
+c. To start virtual env = source env/scripts/activate
+d. install django = pip install django
+e. django-admin startproject greatkart .   (the . creates in current directory)
+f. to run server= python manage.py runserver
+
+3. CREATING TEMPLATES AND STATIC FILES
+
+a. in settings.py
+
+import os
+
+and add following dir using this code
+
+'DIRS': [
+        os.path.join(BASE_DIR, 'templates'),
+        ],
+
+b. define in urls.py
+
+from . import views
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', views.home, name='home'),
+]
+
+c. define function to add html page, create views.py:
+
+from django.shortcuts import render
+from django.http import HttpResponse, JsonResponse
+
+def home(request):
+    return render(request, 'home.html')
+
+d. create static folder in project/greatkart/static and copy all files here, then add following code to add to settings.py
+
+STATIC_ROOT = BASE_DIR /'static'
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'greatkart/static'),
+]
+
+e. then in terminal run this line
+python manage.py collectstatic
+
+f. Then load static fies in html page
+on top of html page add this code:
+{% load static %}
+
+e. use this code to add the files, enclose them in {% static 'PATH'%} use the same code to add any static files:
+
+<link href="{% static 'images/favicon.ico'%}" rel="shortcut icon" type="image/x-icon">
+<!-- jQuery -->
+<script src="{% static 'js/jquery-2.0.0.min.js'%}" type="text/javascript"></script>
+
+<!-- Bootstrap4 files-->
+<script src="{% static 'js/bootstrap.bundle.min.js'%}" type="text/javascript"></script>
+<link href="{% static 'css/bootstrap.css'%}" rel="stylesheet" type="text/css"/>
+
+<!-- Font awesome 5 -->
+<link href="{% static 'fonts/fontawesome/css/all.min.css'%}" type="text/css" rel="stylesheet">
+
+<!-- custom style -->
+<link href="{% static 'css/ui.css'%}" rel="stylesheet" type="text/css"/>
+<link href="{% static 'css/responsive.css'%}" rel="stylesheet" media="only screen and (max-width: 1200px)" />
+
+<!-- custom javascript -->
+<script src="{% static 'js/script.js'%}" type="text/javascript"></script>
+
+<script type="{% static 'text/javascript'%}">
+
+
+4. MAKING BASE TEMPLATE
+
+a. create new base.html in template folder
+b. copy or create the head and header in base.html (basically the reusable and common items) and add the code on top:
+
+{% load static%}
+c. then after the header:
+
+	{% block content%}
+	{% endblock%}
+
+c. Now in the home.html add the code on top:
+
+	{% extends 'base.html' %}
+	{% load static %}
+	{% block content%}
+
+and in the bottom:
+
+	{% endblock%}
+
+d. Create navbar.html and footer.html and add the navbar and footer code respectively
+e. include the navbar and footer into base html using the following codes when it is necessary
+
+	<!-- navbar-->
+	{% include 'navbar.html'%}
+	{% block content%}
+	{% endblock%}
+
+	<!-- footer-->
+	{% include 'footer.html'%}
+
+5. Creating Category.
+
+a. Create new app using ternminal: python manage.py startapp category
+b. add in settings.py -> installed apps 'category'
+c. Go to models.py in category folder, create the model and declare class for
+
+class category(models.Model):
+    category_name = models.CharField(max_length=100, unique=True)
+    slug = models.CharField(max_length=100, unique=True)
+    description = models.TextField(max_length=300, blank=True)
+    cat_image = models.ImageField(upload_to='photos/categories', blank=True)
+
+    def __str__(self):
+        return self.category_name
+d. go to admin.py to register the model:
+
+from .models import Category
+# Register your models here.
+admin.site.register(Category)
+
+e. in terminal need to run python manage.py makemigrations
+f. to login to admin panel, create a superuser from terminal - 
+	python manage.py migrate
+then
+	python manage.py createsuperuser
+
+g. to rename the model in admin site -
+
+class Meta:
+        verbose_name = 'Category'
+        verbose_name_plural = 'Categories'
+
+
+6. CUSTOM USER MODEL
+
+a. create accounts app from terminal and register it in settings.py
+b. in models.py create and define the models:
+
+from django.db import models
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+# Create your models here.
+class MyAccountManager(BaseUserManager): #module for is_superadmin
+    def create_user(self, first_name, last_name, username, email, password=None):
+        if not email:
+            raise ValueError('user must have an email address')
+        if not username:
+            raise ValueError('user must have a username')
+
+        user = self.model(
+            email = self.normalize_email(email),
+            username = username,
+            first_name = first_name,
+            last_name = last_name,
+        )
+
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, first_name, last_name, email, username, password):
+        user = self.create_user(
+            email = self.normalize_email(email),
+            username = username,
+            password = password,
+            first_name = first_name,
+            last_name = last_name,
+            )
+        user.is_admin = True
+        user.is_active = True
+        user.is_staff = True
+        user.is_superadmin = True
+        user.save(using=self._db)
+        return user
+
+class Account(AbstractBaseUser):
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
+    username = models.CharField(max_length=50, unique=True)
+    email = models.CharField(max_length=50, unique=True)
+    phone_number = models.CharField(max_length=20)
+
+    #Mandatory
+    date_joined = models.DateTimeField(auto_now_add=True)
+    last_login = models.DateTimeField(auto_now_add=True)
+    is_admin = models.BooleanField(default=False)
+    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=False)
+    is_superadmin = models.BooleanField(default=False)
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+
+    objects = MyAccountManager()
+
+    def __str__(self):
+        return self.email
+
+    def has_perm(self, perm, obj=None):
+        return self.is_admin
+
+    def has_module_perms(self, add_label):
+        return True
+
+c. in settings.py:
+AUTH_USER_MODEL = 'accounts.Account'
+
+d. and in admin.py:
+	from django.contrib import admin
+	from .models import Account
+	# Register your models here.
+	admin.site.register(Account)
+
+e. Delete current database and migrations files
+f. run python manage.py runserver to create fresh database
+g. run python manage.py makemigrations
+h. run python manage.py migrate
+i. run python manage.py createsuperuser
+
+7. MAKING CUSTOM PASSWORD FIELD READ-ONLY
+
+a. add the following code in admin.py in accounts folder
+
+from django.contrib.auth.admin import UserAdmin
+# Register your models here.
+class AccountAdmin(UserAdmin):
+    list_display = ('email', 'first_name', 'last_name', 'username', 'last_login', 'date_joined' 'is_active')
+    filter_horizontal =()
+    list_filter = ()
+    fieldsets = ()
+
+
+admin.site.register(Account, AccountAdmin)
+
+b. Making name clickable - Add the code under the class defined above
+    
+	list_display_links = ('email', 'first_name', 'last_name')
+	readonly_links = ('last_login', 'date_joined')
+	ordering = ('-date_joined',) #order the list display via date joined
+
+
+
+8. Configuring Django Media Files upload
+
+a. First we have to define the folder path location in main settings.py:
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR /'media'
+
+b. next we add the code to urls.py
+
+from django.conf.urls.static import static
+from django.conf import settings
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+9. AUTO POPULATE SLUG NAME
+
+a. In category-> models.py, add the slug code then run migrate
+
+class Category(models.Model):
+slug = models.SlugField(max_length=100, unique=True)
+
+b. add this code in categry-> admins.py (This will show list display in admin panel for category)
+
+class CategoryAdmin(admin.ModelAdmin):
+    """docstring for CategoryAdmin."""
+    prepopulated_fields = {'slug': ('category_name',)}
+    list_display = ('category_name', 'slug',)
+
+admin.site.register(CategoryAdmin)
+
+
+------------------------------------------------------------------------
+
+WORKING WITH PRODUCTS
+
+1. STORE APP AND PRODUCT MODEL
+
+a. Create a new app from cmd called store : python manage.py startapp store
+b. register the new app in main settings.py
+c. create a new class in store-> models.py :
+
+from django.db import models
+from category.models import Category
+
+# Create your models here.
+class Product(models.Model):
+    product_name = models.CharField(max_length=200, unique=True)
+    slug = models.SlugField(max_length=200, unique=True)
+    description = models.TextField(max_length=500, blank=True)
+    price = models.IntegerField()
+    images = models.ImageField(upload_to= 'photos/products')
+    stock = models.IntegerField()
+    is_available = models.BooleanField(default=True)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)#On delete of category, all products in category will be deleted
+    created_date = models.DateTimeField(auto_now_add=True)
+    modified_date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):     #
+        return self.product_name
+
+
+d. Next we go to admin.py and add the code:
+
+from django.contrib import admin
+from .models import Product
+
+# Register your models here.
+
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ('product_name', 'price', 'stock', 'category', 'modified_date')
+    prepopulated_fields =   {'slug': ('product_name',)}
+
+
+
+
+admin.site.register(Product, ProductAdmin)
+
+
+
+2. ADD PRODUCTS
+
+Add products from admin panel
+
+3.DISPLAYING PRODUCTS IN HOMEPAGE
+
+a. in main-> views.py, add the variable code to take products from store-> models.py
+
+from store.models import Product
+
+def home(request):
+    products = Product.objects.all().filter(is_available=True)
+    context = {
+        'products': products,
+    }
+    return render(request, 'home.html', context)
+
+b. next we modify/add code to the html page
+
+<div class="row">
+	{% for product in products%}
+	<div class="col-md-3">
+		<div class="card card-product-grid">
+			<a href="./product-detail.html" class="img-wrap"> <img src="{{ product.images.url }}"> </a>
+			<figcaption class="info-wrap">
+				<a href="./product-detail.html" class="title">{{ product.product_name}}</a>
+				<div class="price mt-1">${{product.price}}</div> <!-- price-wrap.// -->
+			</figcaption>
+		</div>
+	</div> <!-- col.// -->
+	 {% endfor%}
+</div>
+
+3. MAKE STORE PAGE
+
+a. Create a urls.py in store folder and add this code
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.store, name='store'),
+]
+
+
+b. Next we add this line of code to the main urls.py to redirect it to store urls.py
+
+	from django.urls import path, include
+	path('store/', include('store.urls')) #this redirects to the store urls.py
+
+c. under templates folder, create a new folder store and inside store create a store.html
+
+d. in store views.py add this code
+
+	from django.shortcuts import render
+
+	# Create your views here.
+
+	def store(request):
+   	 return render(request, 'store/store.html')
+
+e. in store.html, extend the base html, this will being the header and footer, and add the body html code
+
+	{% extends 'base.html' %}
+	
+	{% load static %}
+
+	{% block content%}
+
+
+
+
+	{% endblock%}
+
+f. add this line of code to show dynamic products
+
+<div class="row">
+  {% for product in products%}
+	<div class="col-md-4">
+		<figure class="card card-product-grid">
+			<div class="img-wrap">
+
+				<img src="{{ product.images.url }}">
+
+			</div> <!-- img-wrap.// -->
+			<figcaption class="info-wrap">
+				<div class="fix-height">
+					<a href="./product-detail.html" class="title">{{ product.product_name}}</a>
+					<div class="price-wrap mt-2">
+						<span class="price">${{product.price}}</span>
+					</div> <!-- price-wrap.// -->
+				</div>
+				<a href="#" class="btn btn-block btn-primary">Add to cart </a>
+			</figcaption>
+		</figure>
+	</div> <!-- col.// -->
+  {% endfor %}
+</div> <!-- row end.// -->
+
+g. and add this in views.py of store
+
+products = Product.objects.all().filter(is_available=True)
+    context = {
+        'products': products,
+    }
+
+h. for product count add the code in views.py :
+
+def store(request):
+    products = Product.objects.all().filter(is_available=True)
+    product_count = products.count()
+    context = {
+        'products': products,
+        'product_count': product_count,
+    }
+    return render(request, 'store/store.html', context)
+
+Then add the code in the html for display dynamic:
+<span class="mr-md-auto">{{product_count}} Items found </span>
+
+4. DISPLAY PRODUCTS BY CATEGORY
+
+a. displaying url path category, we need to add a dynamic path in store->urls.py
+
+path('<slug:category_slug>/', views.store, name='products_by_category'),
+
+b. in views, change the code to this:
+
+from django.shortcuts import render, get_object_or_404
+from .models import Product
+from category.models import Category
+
+# Create your views here.
+
+def store(request, category_slug=None):
+    categories = None
+    products = None
+
+    if category_slug != None:
+        categories = get_object_or_404(Category, slug=category_slug)
+        products = Product.objects.filter(category=categories, is_available=True)
+        product_count = products.count()
+    else:
+        products = Product.objects.all().filter(is_available=True)
+        product_count = products.count()
+
+    context = {
+        'products': products,
+        'product_count': product_count,
+    }
+    return render(request, 'store/store.html', context)
+
+
+5. CONTEXT PROCESSOR AND PRODUCT DETAILS
+
+5.1 MAKE CONTEXT PROCESSOR FOR DISPLAYING CATEGORIES ON NAVBAR
+
+a. create a new file under category app folder called context_processor.py and add this code to request as argument and return dictionary as context:
+
+from .models import Category
+
+def menu_links(request):
+    links = Category.objects.all()
+    return dict(links=links)
+
+
+b. add this code inside main settings.py->TEMPLATES to register the context processor:
+
+'category.context_processors.menu_links'
+
+c. in html navbar page, add the code:
+
+<div class="dropdown-menu">
+        {%for category in links%}
+				<a class="dropdown-item" href="#">{{ category.category_name }} </a>
+        {% endfor %}
+
+			</div>
+
+d. to add click functionality, we need to define a function to get the slug and make it a link, so add this code in html:
+
+href="{{ category.get_url }}"
+
+e. next we define the function in category->models.py
+
+from django.urls import reverse
+def get_url(self):
+        return reverse('products_by_category', args=[self.slug])
+
+
+5.2 DISPLAYING CATEGORIES IN STORE PAGE SIDE PANEL
+
+a. Add ths line of code to html page display categories in side menu:
+
+	{% for category in links%}
+	<li><a href="{{ category.get_url }}">{{ category.category_name }}  </a></li>
+	{% endfor %}
+
+b. To create link for All Products, create a new link called All prducts and add django code, add this line of code above categories list link menu:
+
+<li><a href="{% url 'store' %}">All Products</a></li>
+
+c. Lets add all products link to dropdown menu, add this is navbar.html:
+
+<a class="dropdown-item" href="{% url 'store'%}">All Products </a>
+
+
+
+5.3 PRODUCT DETAIL URL AND DESIGN
+
+a. Create a new view first in store-> urls.py: This will give the url path using product slug
+
+path('<slug:category_slug>/<slug:product_slug>/', views.product_detail, name='product_detail'),
+
+b. next we define a function for the url path:
+
+def product_detail(request, category_slug, product_slug):
+    try:
+        single_product = Product.objects.get(category__slug=category_slug, slug=product_slug)
+    except Exception as e:
+        raise e
+
+    context = {
+        'single_product' : single_product,
+    }
+    return render(request, 'store/product_detail.html', context)
+
+
+c. Then we design the html page along with dynamic content:  
+
+{% extends 'base.html'%}
+{% load static %}
+{% block content %}
+<section class="section-content padding-y bg">
+<div class="container">
+
+<!-- ============================ COMPONENT 1 ================================= -->
+<div class="card">
+	<div class="row no-gutters">
+		<aside class="col-md-6">
+<article class="gallery-wrap">
+	<div class="img-big-wrap">
+	   <a href="#"><img src="{{ single_product.images.url }}"></a>
+	</div> <!-- img-big-wrap.// -->
+
+</article> <!-- gallery-wrap .end// -->
+		</aside>
+		<main class="col-md-6 border-left">
+<article class="content-body">
+
+<h2 class="title">{{ single_product.product_name }}</h2>
+
+<div class="mb-3">
+	<var class="price h4">${{ single_product.price }}</var>
+</div>
+
+<p>{{ single_product.description}} </p>
+
+
+<hr>
+	<div class="row">
+		<div class="item-option-select">
+			<h6>Choose Color</h6>
+			<div class="btn-group btn-group-sm btn-group-toggle" data-toggle="buttons">
+			  <label class="btn btn-light">
+			    <input type="radio" name="radio_color"> Silver
+			  </label>
+			  <label class="btn btn-light">
+			    <input type="radio" name="radio_color" > Gray
+			  </label>
+			  <label class="btn btn-light active">
+			    <input type="radio" name="radio_color checked"> Gold
+			  </label>
+			  <label class="btn btn-light">
+			    <input type="radio" name="radio_color"> Black
+			  </label>
+			</div>
+		</div>
+	</div> <!-- row.// -->
+	<div class="row">
+		<div class="item-option-select">
+			<h6>Select Size</h6>
+			<div class="btn-group btn-group-sm btn-group-toggle" data-toggle="buttons">
+			  <label class="btn btn-light">
+			    <input type="radio" name="radio_color"> S
+			  </label>
+			  <label class="btn btn-light active">
+			    <input type="radio" name="radio_color" checked> M
+			  </label>
+			  <label class="btn btn-light">
+			    <input type="radio" name="radio_color"> L
+			  </label>
+			  <label class="btn btn-light">
+			    <input type="radio" name="radio_color"> XL
+			  </label>
+			</div>
+		</div>
+	</div> <!-- row.// -->
+	<hr>
+	<a href="./product-detail.html" class="btn  btn-primary"> <span class="text">Add to cart</span> <i class="fas fa-shopping-cart"></i>  </a>
+</article> <!-- product-info-aside .// -->
+		</main> <!-- col.// -->
+	</div> <!-- row.// -->
+</div> <!-- card.// -->
+<!-- ============================ COMPONENT 1 END .// ================================= -->
+
+<br>
+
+<div class="row">
+			<div class="col-md-9">
+
+	<header class="section-heading">
+		<h3>Customer Reviews </h3>
+
+	</header>
+
+	<article class="box mb-3">
+		<div class="icontext w-100">
+			<img src="./images/avatars/avatar1.jpg" class="img-xs icon rounded-circle">
+			<div class="text">
+				<span class="date text-muted float-md-right">24.04.2020 </span>
+				<h6 class="mb-1">Mike John </h6>
+
+			</div>
+		</div> <!-- icontext.// -->
+		<div class="mt-3">
+			<p>
+				Dummy comment Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
+				tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
+				quis nostrud exercitation ullamco laboris nisi ut aliquip
+			</p>
+		</div>
+	</article>
+
+
+
+	</div> <!-- col.// -->
+</div> <!-- row.// -->
+
+
+</div> <!-- container .//  -->
+</section>
+<!-- ========================= SECTION CONTENT END// ========================= -->
+
+{% endblock %}
+
+5.4 GET URL FOR PRODUCT DETAIL PAGE, make links clickable and route to product page
+
+a. create the code in models.py of store:
+
+from django.urls import reverse
+def get_url (self):   #add this under the current class
+        return reverse('product_detail', args=[self.category.slug, self.slug])
+
+b. next we add the code in html page so when we click product, it will direct to product page:
+
+<a href="{{ product.get_url }}" class="img-wrap"> <img src="{{ product.images.url }}"> </a>
+
+c. Next, lets fix all the links so when we click the links, it will redirect to the respective page
+
+
+
+
+
+
+
+
